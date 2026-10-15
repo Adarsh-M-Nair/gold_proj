@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoldSafe | Registered Customers &amp; Pledges</title>
+    <meta name="description" content="Muthoot Finance GoldSafe – Registered Customer Records and Pledged Ornaments">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand: #DC143C;
+            --brand-hover: #B8122F;
+            --brand-glow: rgba(220,20,60,0.22);
+            --brand-light: #FEF2F2;
+            --bg: #0d0608;
+            --card: rgba(255,255,255,0.97);
+            --border: #E5E7EB;
+            --text: #111827;
+            --text-2: #4B5563;
+            --text-3: #9CA3AF;
+            --success: #10B981;
+            --r-lg: 24px;
+            --r-md: 14px;
+            --r-sm: 10px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px 16px 48px;
+            overflow-x: hidden;
+        }
+
+        .orb {
+            position: fixed; border-radius: 50%; filter: blur(90px);
+            opacity: 0.14; pointer-events: none; z-index: 0;
+            animation: drift 22s ease-in-out infinite;
+        }
+        .orb-1 { width: 500px; height: 500px; background: #DC143C; top: -180px; left: -80px; }
+        .orb-2 { width: 400px; height: 400px; background: #7C3AED; bottom: -100px; right: -80px; animation-delay: -10s; }
+        @keyframes drift {
+            0%,100%{transform:translate(0,0)} 50%{transform:translate(28px,-36px)}
+        }
+
+        .layout { max-width: 1240px; margin: 0 auto; position: relative; z-index: 1; }
+
+        /* Navbar */
+        .navbar {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 28px; padding: 14px 24px;
+            background: rgba(255,255,255,0.06); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: var(--r-md);
+            animation: fadeDown 0.45s ease both;
+        }
+        @keyframes fadeDown { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:none} }
+
+        .brand { display:flex; align-items:center; gap:12px; text-decoration:none; }
+        .brand-icon {
+            width:40px; height:40px; border-radius:12px;
+            background: linear-gradient(135deg, var(--brand), #8B0000);
+            display:flex; align-items:center; justify-content:center;
+            box-shadow: 0 4px 16px var(--brand-glow);
+        }
+        .brand-icon svg { width:22px; height:22px; fill:#fff; }
+        .brand-name { font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#fff; line-height:1; }
+        .brand-sub  { font-size:10px; font-weight:600; color:rgba(255,255,255,0.45); letter-spacing:1px; text-transform:uppercase; }
+
+        .nav-links { display:flex; gap:6px; }
+        .nav-link {
+            padding:8px 14px; border-radius:8px; font-size:13px; font-weight:600;
+            color:rgba(255,255,255,0.6); text-decoration:none; transition:all 0.2s;
+        }
+        .nav-link:hover { color:#fff; background:rgba(255,255,255,0.1); }
+        .nav-link.active { color:#fff; background:rgba(220,20,60,0.25); border:1px solid rgba(220,20,60,0.4); }
+
+        /* Stats row */
+        .stats-row {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
+            gap: 16px; margin-bottom: 24px;
+            animation: fadeUp 0.45s 0.1s ease both;
+        }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+
+        .stat-tile {
+            background: rgba(255,255,255,0.07); backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: var(--r-md);
+            padding: 20px 22px; transition: all 0.25s;
+        }
+        .stat-tile:hover { background: rgba(255,255,255,0.12); transform: translateY(-3px); }
+        .stat-tile-label { font-size:11px; font-weight:700; color:rgba(255,255,255,0.45); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:6px; }
+        .stat-tile-value { font-family:'Outfit',sans-serif; font-size:30px; font-weight:900; color:#fff; }
+        .stat-tile-value.red { color:var(--brand); }
+        .stat-tile-value.green { color:#34D399; }
+
+        /* Main card */
+        .records-card {
+            background: var(--card);
+            border-radius: var(--r-lg);
+            padding: 32px;
+            box-shadow: 0 32px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+            position: relative; overflow: hidden;
+            animation: fadeUp 0.5s 0.2s ease both;
+        }
+        .records-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+            background: linear-gradient(90deg, var(--brand), #FF6B6B, var(--brand));
+            background-size: 200% 100%; animation: shimmer 2.5s linear infinite;
+        }
+        @keyframes shimmer { to { background-position: 200% 0; } }
+
+        /* Header row */
+        .header-row {
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 16px; margin-bottom: 26px;
+        }
+        .page-title { font-family:'Outfit',sans-serif; font-size:24px; font-weight:800; color:var(--text); }
+        .page-subtitle { font-size:13.5px; color:var(--text-2); margin-top:3px; }
+
+        .header-actions { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+
+        /* Search box */
+        .search-box { position:relative; min-width:260px; }
+        .search-box svg {
+            position:absolute; left:12px; top:50%; transform:translateY(-50%);
+            width:16px; height:16px; stroke:var(--text-3); fill:none; stroke-width:2;
+            pointer-events:none;
+        }
+        .search-input {
+            width:100%; padding:10px 12px 10px 36px;
+            font-family:'Inter',sans-serif; font-size:13.5px;
+            border: 1.5px solid var(--border); border-radius: var(--r-sm);
+            background: #FAFAFA; outline:none; transition:all 0.2s; color:var(--text);
+        }
+        .search-input:focus {
+            border-color:var(--brand); background:#fff;
+            box-shadow: 0 0 0 3px rgba(220,20,60,0.12);
+        }
+
+        /* Register button */
+        .btn-new {
+            display:inline-flex; align-items:center; gap:8px;
+            padding:10px 18px;
+            background: linear-gradient(135deg, var(--brand), #FF4060);
+            color:#fff; border-radius:var(--r-sm); text-decoration:none;
+            font-size:13.5px; font-weight:700;
+            box-shadow: 0 4px 14px var(--brand-glow); transition:all 0.25s;
+        }
+        .btn-new:hover { transform:translateY(-2px); box-shadow:0 8px 24px var(--brand-glow); }
+        .btn-new svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2.2; }
+
+        /* Table */
+        .table-wrap {
+            width:100%; overflow-x:auto;
+            border: 1.5px solid var(--border); border-radius: var(--r-md);
+        }
+        table { width:100%; border-collapse:collapse; text-align:left; font-size:13.5px; }
+        thead tr { background: #F9FAFB; }
+        thead th {
+            padding:13px 16px; font-size:10.5px; font-weight:800;
+            text-transform:uppercase; letter-spacing:0.6px;
+            color:var(--text-3); border-bottom: 1.5px solid var(--border);
+            white-space:nowrap; user-select:none; cursor:pointer;
+        }
+        thead th:hover { color: var(--brand); }
+        thead th .sort-arrow { opacity:0.4; font-size:10px; margin-left:4px; }
+        thead th.asc .sort-arrow::after  { content: '↑'; }
+        thead th.desc .sort-arrow::after { content: '↓'; }
+        thead th:not(.asc):not(.desc) .sort-arrow::after { content: '↕'; }
+
+        tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s, transform 0.15s;
+        }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: var(--brand-light); }
+
+        td { padding:13px 16px; vertical-align:middle; color:var(--text); }
+
+        .pledge-tag {
+            font-family:'Outfit',sans-serif; font-weight:800; color:var(--brand);
+            background:rgba(220,20,60,0.09); padding:4px 10px;
+            border-radius:5px; display:inline-block; font-size:13px;
+            letter-spacing:0.2px;
+        }
+
+        .thumb {
+            width:56px; height:56px; object-fit:cover;
+            border-radius:10px; border: 1.5px solid var(--border);
+            cursor:pointer; transition:all 0.25s;
+            display:block;
+        }
+        .thumb:hover { transform:scale(1.12); border-color:var(--brand); box-shadow:0 4px 12px var(--brand-glow); }
+
+        .customer-name { font-weight:700; }
+        .date-cell { color:var(--text-3); font-size:12.5px; white-space:nowrap; }
+
+        /* Delete button */
+        .btn-delete {
+            display:inline-flex; align-items:center; justify-content:center;
+            width:34px; height:34px;
+            background:#FEF2F2; border:1.5px solid #FECACA;
+            color:#DC2626; border-radius:8px;
+            cursor:pointer; transition:all 0.2s;
+        }
+        .btn-delete:hover { background:#DC2626; color:#fff; border-color:#DC2626; transform:scale(1.1); }
+        .btn-delete svg { width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; }
+
+        /* Delete confirmation modal */
+        .del-modal-backdrop {
+            display:none; position:fixed; inset:0;
+            background:rgba(0,0,0,0.75); backdrop-filter:blur(10px);
+            z-index:1100; align-items:center; justify-content:center; padding:20px;
+        }
+        .del-modal-backdrop.show { display:flex; animation:fadeIn 0.18s ease; }
+        .del-modal-box {
+            background:#fff; border-radius:20px; max-width:420px; width:100%;
+            padding:32px 28px; text-align:center;
+            box-shadow:0 32px 64px rgba(0,0,0,0.55);
+            animation:popUp 0.22s cubic-bezier(.34,1.56,.64,1);
+        }
+        .del-icon {
+            width:56px; height:56px; margin:0 auto 16px;
+            background:#FEF2F2; border-radius:50%;
+            display:flex; align-items:center; justify-content:center;
+            color:#DC2626; animation:shake 0.4s 0.1s ease both;
+        }
+        @keyframes shake { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-8deg)} 75%{transform:rotate(8deg)} }
+        .del-icon svg { width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:2; }
+        .del-title { font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:#111827; margin-bottom:8px; }
+        .del-desc { font-size:13.5px; color:#4B5563; line-height:1.5; margin-bottom:24px; }
+        .del-desc strong { color:#DC2626; }
+        .del-actions { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .btn-cancel-del {
+            padding:12px; background:#F3F4F6; border:1px solid #E5E7EB;
+            color:#374151; border-radius:10px; font-size:14px; font-weight:700;
+            cursor:pointer; transition:all 0.2s; width:100%;
+        }
+        .btn-cancel-del:hover { background:#E5E7EB; }
+        .btn-confirm-del {
+            padding:12px; background:linear-gradient(135deg,#DC2626,#EF4444);
+            color:#fff; border:none; border-radius:10px;
+            font-size:14px; font-weight:700; cursor:pointer; width:100%;
+            box-shadow:0 4px 14px rgba(220,38,38,0.35); transition:all 0.2s;
+            opacity:0.45; pointer-events:none;
+        }
+        .btn-confirm-del:not([disabled]), .btn-confirm-del.unlocked {
+            opacity:1; pointer-events:auto;
+        }
+        .btn-confirm-del.unlocked:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(220,38,38,0.5); }
+
+        /* Step-1 "Continue" button */
+        .btn-next-del {
+            padding:12px 20px; background:linear-gradient(135deg,#F59E0B,#D97706);
+            color:#fff; border:none; border-radius:10px;
+            font-size:14px; font-weight:700; cursor:pointer;
+            box-shadow:0 4px 14px rgba(245,158,11,0.35); transition:all 0.2s; flex:1;
+        }
+        .btn-next-del:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(245,158,11,0.5); }
+
+        /* Red variant icon for step 2 */
+        .del-icon-red { background:#FEF2F2; animation:none; }
+
+        /* Record info chip in step 1 */
+        .del-record-info {
+            display:flex; flex-direction:column; gap:6px;
+            background:#F9FAFB; border:1.5px solid #E5E7EB;
+            border-radius:10px; padding:12px 14px; margin-bottom:20px; text-align:left;
+        }
+        .del-info-row { font-size:13px; color:#374151; }
+
+        /* Type-to-confirm box */
+        .del-type-box {
+            background:#FFF7F7; border:1.5px solid #FECACA;
+            border-radius:12px; padding:14px 16px; margin-bottom:20px; text-align:left;
+        }
+        .del-type-hint {
+            font-size:12.5px; color:#6B7280; margin-bottom:8px;
+        }
+        .del-type-hint strong { color:#DC2626; font-family:monospace; font-size:13.5px; }
+        .del-type-input {
+            width:100%; padding:10px 12px;
+            font-family:monospace; font-size:14px; font-weight:600;
+            border:1.5px solid #FECACA; border-radius:8px;
+            background:#fff; outline:none; transition:all 0.2s; color:#111827;
+        }
+        .del-type-input:focus { border-color:#DC2626; box-shadow:0 0 0 3px rgba(220,38,38,0.12); }
+        .del-type-status { font-size:12px; font-weight:600; margin-top:6px; min-height:16px; }
+
+        /* Empty state */
+        .empty-state {
+            text-align:center; padding:64px 20px;
+        }
+        .empty-icon {
+            width:64px; height:64px; margin:0 auto 18px;
+            background:#F3F4F6; border-radius:50%;
+            display:flex; align-items:center; justify-content:center;
+            color:var(--text-3);
+        }
+        .empty-icon svg { width:30px; height:30px; stroke:currentColor; fill:none; stroke-width:1.5; }
+        .empty-title { font-family:'Outfit',sans-serif; font-size:18px; font-weight:700; color:var(--text); margin-bottom:6px; }
+        .empty-sub { font-size:13.5px; color:var(--text-2); margin-bottom:20px; line-height:1.5; }
+
+        /* Image Modal */
+        .modal-backdrop {
+            display:none; position:fixed; inset:0;
+            background:rgba(0,0,0,0.8); backdrop-filter:blur(12px);
+            z-index:1000; align-items:center; justify-content:center; padding:20px;
+        }
+        .modal-backdrop.show { display:flex; animation:fadeIn 0.2s ease; }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+        .modal-box {
+            background:#fff; border-radius:var(--r-lg);
+            max-width:520px; width:100%; overflow:hidden;
+            box-shadow:0 32px 64px rgba(0,0,0,0.6);
+            animation:popUp 0.25s cubic-bezier(.34,1.56,.64,1);
+        }
+        @keyframes popUp { from{opacity:0;transform:scale(0.88)} to{opacity:1;transform:scale(1)} }
+
+        .modal-header {
+            padding:16px 20px; border-bottom:1px solid var(--border);
+            display:flex; align-items:center; justify-content:space-between;
+        }
+        .modal-title { font-family:'Outfit',sans-serif; font-size:17px; font-weight:800; color:var(--brand); }
+        .modal-close {
+            background:none; border:none; color:var(--text-3);
+            font-size:22px; cursor:pointer; line-height:1;
+            transition:color 0.2s; padding:2px 6px; border-radius:4px;
+        }
+        .modal-close:hover { color:var(--brand); background:var(--brand-light); }
+        .modal-body { padding:20px; text-align:center; }
+        .modal-img {
+            max-width:100%; max-height:380px; border-radius:var(--r-md);
+            object-fit:contain; box-shadow:0 6px 24px rgba(0,0,0,0.15);
+        }
+
+        footer { margin-top:28px; text-align:center; font-size:12px; color:rgba(255,255,255,0.3); }
+    </style>
+</head>
+<body>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <div class="layout">
+        <header class="navbar">
+            <a href="/" class="brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm0 18c-4.04-1.12-7-5.22-7-9.5V8.3l7-3.89 7 3.89V10.5c0 4.28-2.96 8.38-7 9.5z"/></svg>
+                </div>
+                <div>
+                    <div class="brand-name">GoldSafe</div>
+                    <div class="brand-sub">Muthoot Finance AI</div>
+                </div>
+            </a>
+            <nav class="nav-links">
+                <a href="/" class="nav-link">Search Items</a>
+                <a href="/register" class="nav-link">Register Customer</a>
+                <a href="/customers" class="nav-link active">Pledge Records</a>
+            </nav>
+        </header>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-tile">
+                <div class="stat-tile-label">Total Pledges</div>
+                <div class="stat-tile-value red" id="stat-total">{{ customers|length if customers else 0 }}</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile-label">Search Results</div>
+                <div class="stat-tile-value" id="stat-filtered">—</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile-label">System Status</div>
+                <div class="stat-tile-value green" style="font-size:18px;padding-top:6px;">● Online</div>
+            </div>
+        </div>
+
+        <main class="records-card">
+            <div class="header-row">
+                <div>
+                    <h1 class="page-title">Registered Customers &amp; Pledges</h1>
+                    <p class="page-subtitle">Database of client registrations with KYC and captured ornament photos.</p>
+                </div>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" class="search-input" id="search-input"
+                               placeholder="Search by name, phone, aadhaar, ID…"
+                               oninput="filterTable()" autocomplete="off">
+                    </div>
+                    <a href="/register" class="btn-new">
+                        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        New Customer
+                    </a>
+                </div>
+            </div>
+
+            {% if customers %}
+            <div class="table-wrap">
+                <table id="customers-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)" class="asc">Pledge ID <span class="sort-arrow"></span></th>
+                            <th>Photo</th>
+                            <th onclick="sortTable(2)">Customer Name <span class="sort-arrow"></span></th>
+                            <th onclick="sortTable(3)">Phone <span class="sort-arrow"></span></th>
+                            <th>Aadhaar</th>
+                            <th onclick="sortTable(5)">Registered <span class="sort-arrow"></span></th>
+                            <th style="text-align:center;">Delete</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        {% for c in customers %}
+                        <tr class="table-row">
+                            <td><span class="pledge-tag">{{ c.pledge_id }}</span></td>
+                            <td>
+                                <div style="position:relative; display:inline-block;">
+                                    <img src="/{{ c.ornament_photo }}"
+                                         alt="Ornament"
+                                         class="thumb"
+                                         onclick="openMultiModal({{ c.photos|tojson }}, '{{ c.pledge_id }} — {{ c.name }}')"
+                                         onerror="this.style.display='none'">
+                                    {% if c.photo_count and c.photo_count > 1 %}
+                                    <span style="position:absolute; bottom:-5px; right:-5px; background:var(--brand); color:#fff; font-size:10px; font-weight:800; padding:1px 6px; border-radius:10px; border:1.5px solid #fff; box-shadow:0 2px 5px rgba(0,0,0,0.25); cursor:pointer;"
+                                          onclick="openMultiModal({{ c.photos|tojson }}, '{{ c.pledge_id }} — {{ c.name }}')"
+                                          title="{{ c.photo_count }} angles recorded">
+                                        +{{ c.photo_count - 1 }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="customer-name">{{ c.name }}</td>
+                            <td>{{ c.phone }}</td>
+                            <td style="font-family:monospace; letter-spacing:1px;">{{ c.aadhar }}</td>
+                            <td class="date-cell">{{ c.created_at }}</td>
+                            <td style="text-align:center;">
+                                <button class="btn-delete"
+                                        onclick="confirmDelete({{ c.id }}, '{{ c.pledge_id }}', '{{ c.name }}')"
+                                        title="Delete record">
+                                    <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div id="no-filter-results" style="display:none; text-align:center; padding:40px 20px; color:var(--text-3);">
+                <p style="font-size:15px; font-weight:600; color:var(--text-2);">No records match your search</p>
+                <p style="font-size:13px; margin-top:4px;">Try a different name, phone, or pledge ID</p>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <div class="empty-title">No Customer Registrations Yet</div>
+                <p class="empty-sub">Register your first customer and pledged ornament using the camera interface.</p>
+                <a href="/register" class="btn-new">
+                    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Register New Customer
+                </a>
+            </div>
+            {% endif %}
+        </main>
+
+        <footer>&copy; 2026 Muthoot Finance Ltd. GoldSafe Verification System.</footer>
+    </div>
+
+    <!-- Image Modal (Supports Single & Multi-Angle) -->
+    <div class="modal-backdrop" id="img-modal" onclick="closeModal(event)">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">Pledged Ornament</div>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:0; overflow:hidden;">
+                <img id="modal-img" class="modal-img" src="" alt="Enlarged Ornament Photo">
+                <div id="modal-thumbs-strip" style="display:none; padding:12px; background:#F9FAFB; border-top:1px solid var(--border); display:flex; gap:8px; overflow-x:auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete 2-Step Modal -->
+    <div class="del-modal-backdrop" id="del-modal">
+        <div class="del-modal-box">
+
+            <!-- STEP 1: Warning -->
+            <div id="del-step-1">
+                <div class="del-icon">
+                    <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div class="del-title">Permanently Delete?</div>
+                <p class="del-desc">This action <strong>cannot be undone</strong>. The customer record and ornament photo will be wiped from the database.</p>
+                <div class="del-record-info" id="del-record-info"></div>
+                <div class="del-actions">
+                    <button class="btn-cancel-del" onclick="closeDel()">Cancel</button>
+                    <button class="btn-next-del" onclick="goDelStep2()">Continue &rarr;</button>
+                </div>
+            </div>
+
+            <!-- STEP 2: Type to confirm -->
+            <div id="del-step-2" style="display:none;">
+                <div class="del-icon del-icon-red">
+                    <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                </div>
+                <div class="del-title">Confirm Deletion</div>
+                <p class="del-desc">Type the pledge ID below to unlock the delete button.</p>
+                <div class="del-type-box">
+                    <div class="del-type-hint">Type exactly: <strong id="del-type-target"></strong></div>
+                    <input id="del-type-input" type="text" class="del-type-input" placeholder="Enter pledge ID…" autocomplete="off" oninput="checkDelInput()">
+                    <div class="del-type-status" id="del-type-status"></div>
+                </div>
+                <div class="del-actions">
+                    <button class="btn-cancel-del" onclick="goDelStep1()">&larr; Back</button>
+                    <form id="del-form" method="POST" action="" style="flex:1;">
+                        <button type="submit" id="del-confirm-btn" class="btn-confirm-del" style="width:100%;" disabled>Delete Record</button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+    let _delPledgeId = '';
+
+    function confirmDelete(id, pledgeId, name) {
+        _delPledgeId = pledgeId;
+        document.getElementById('del-record-info').innerHTML =
+            `<span class="del-info-row">&#x1F4CB; <b>Pledge&nbsp;ID:</b>&nbsp;${pledgeId}</span>` +
+            `<span class="del-info-row">&#x1F464; <b>Customer:</b>&nbsp;${name}</span>`;
+        document.getElementById('del-form').action = `/delete/${id}`;
+        document.getElementById('del-type-target').textContent = pledgeId;
+        document.getElementById('del-type-input').value = '';
+        document.getElementById('del-type-status').textContent = '';
+        document.getElementById('del-confirm-btn').disabled = true;
+        document.getElementById('del-confirm-btn').classList.remove('unlocked');
+        goDelStep1();
+        document.getElementById('del-modal').classList.add('show');
+    }
+
+    function goDelStep1() {
+        document.getElementById('del-step-1').style.display = '';
+        document.getElementById('del-step-2').style.display = 'none';
+    }
+
+    function goDelStep2() {
+        document.getElementById('del-step-1').style.display = 'none';
+        document.getElementById('del-step-2').style.display = '';
+        setTimeout(() => document.getElementById('del-type-input').focus(), 80);
+    }
+
+    function checkDelInput() {
+        const val = document.getElementById('del-type-input').value.trim();
+        const btn = document.getElementById('del-confirm-btn');
+        const status = document.getElementById('del-type-status');
+        if (val === _delPledgeId) {
+            btn.disabled = false;
+            btn.classList.add('unlocked');
+            status.textContent = '✓ Pledge ID confirmed — you may now delete';
+            status.style.color = '#10B981';
+        } else {
+            btn.disabled = true;
+            btn.classList.remove('unlocked');
+            status.textContent = val.length > 0 ? '✗ Does not match' : '';
+            status.style.color = '#EF4444';
+        }
+    }
+
+    function closeDel() {
+        document.getElementById('del-modal').classList.remove('show');
+    }
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            document.getElementById('img-modal').classList.remove('show');
+            document.getElementById('del-modal').classList.remove('show');
+        }
+    });
+
+    // Live search filter
+    function filterTable() {
+        const q = document.getElementById('search-input').value.toLowerCase().trim();
+        const rows = document.querySelectorAll('#table-body .table-row');
+        let visible = 0;
+        rows.forEach(row => {
+            const match = row.textContent.toLowerCase().includes(q);
+            row.style.display = match ? '' : 'none';
+            if (match) visible++;
+        });
+        document.getElementById('stat-filtered').textContent = q ? visible : '—';
+        const noRes = document.getElementById('no-filter-results');
+        if (noRes) noRes.style.display = (visible === 0 && q) ? 'block' : 'none';
+    }
+
+    // Table sort
+    let sortState = { col: -1, asc: true };
+    function sortTable(colIndex) {
+        const tbody = document.getElementById('table-body');
+        if (!tbody) return;
+        const rows = Array.from(tbody.querySelectorAll('.table-row'));
+        const headers = document.querySelectorAll('thead th');
+
+        if (sortState.col === colIndex) {
+            sortState.asc = !sortState.asc;
+        } else {
+            sortState.col = colIndex;
+            sortState.asc = true;
+        }
+
+        headers.forEach((h, i) => {
+            h.classList.remove('asc', 'desc');
+            if (i === colIndex) h.classList.add(sortState.asc ? 'asc' : 'desc');
+        });
+
+        rows.sort((a, b) => {
+            const aText = a.cells[colIndex]?.textContent.trim().toLowerCase() || '';
+            const bText = b.cells[colIndex]?.textContent.trim().toLowerCase() || '';
+            return sortState.asc ? aText.localeCompare(bText) : bText.localeCompare(aText);
+        });
+        rows.forEach(r => tbody.appendChild(r));
+    }
+
+    // Multi-Angle Modal
+    function openMultiModal(photos, title) {
+        if (!photos || !photos.length) return;
+        const mainImg = document.getElementById('modal-img');
+        const titleEl = document.getElementById('modal-title');
+        const strip = document.getElementById('modal-thumbs-strip');
+        
+        mainImg.src = '/' + photos[0];
+        titleEl.textContent = title + (photos.length > 1 ? ` (Angle 1 of ${photos.length})` : '');
+        
+        if (photos.length > 1) {
+            strip.style.display = 'flex';
+            strip.innerHTML = photos.map((p, idx) => `
+                <div style="flex-shrink:0; width:52px; height:52px; border-radius:8px; overflow:hidden; border:2px solid ${idx === 0 ? 'var(--brand)' : 'var(--border)'}; cursor:pointer; background:#000;"
+                     onclick="switchModalImg('/${p}', ${idx + 1}, ${photos.length}, '${escapeHtml(title)}', this)">
+                    <img src="/${p}" style="width:100%; height:100%; object-fit:cover; display:block;">
+                </div>
+            `).join('');
+        } else {
+            strip.style.display = 'none';
+            strip.innerHTML = '';
+        }
+        document.getElementById('img-modal').classList.add('show');
+    }
+
+    function switchModalImg(src, currentIdx, total, title, thumbEl) {
+        document.getElementById('modal-img').src = src;
+        document.getElementById('modal-title').textContent = `${title} (Angle ${currentIdx} of ${total})`;
+        const strip = document.getElementById('modal-thumbs-strip');
+        if (strip) {
+            Array.from(strip.children).forEach(c => c.style.borderColor = 'var(--border)');
+            if (thumbEl) thumbEl.style.borderColor = 'var(--brand)';
+        }
+    }
+
+    function openModal(src, title) {
+        openMultiModal([src.replace(/^\//, '')], title);
+    }
+
+    function escapeHtml(text) {
+        return String(text).replace(/&/g, '&amp;').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+    function closeModal(e) {
+        if (!e || e.target === document.getElementById('img-modal') || e.currentTarget === document.querySelector('.modal-close')) {
+            document.getElementById('img-modal').classList.remove('show');
+        }
+    }
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') document.getElementById('img-modal').classList.remove('show');
+    });
+
+    // Stagger row entrance
+    document.addEventListener('DOMContentLoaded', () => {
+        const rows = document.querySelectorAll('.table-row');
+        rows.forEach((row, i) => {
+            row.style.opacity = '0';
+            row.style.transform = 'translateX(-8px)';
+            row.style.transition = `opacity 0.3s ease ${i * 40}ms, transform 0.3s ease ${i * 40}ms`;
+            setTimeout(() => {
+                row.style.opacity = '1';
+                row.style.transform = 'none';
+            }, 100 + i * 40);
+        });
+    });
+    </script>
+</body>
+</html>

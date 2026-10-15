@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoldSafe | Customer Registration Successful</title>
+    <meta name="description" content="Muthoot Finance GoldSafe – Registration Success & Pledge Card">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --brand: #DC143C;
+            --brand-glow: rgba(220,20,60,0.25);
+            --gold: #F59E0B;
+            --success: #10B981;
+            --success-light: #ECFDF5;
+            --bg: #0d0608;
+            --card: rgba(255,255,255,0.97);
+            --border: #E5E7EB;
+            --text: #111827;
+            --text-2: #4B5563;
+            --text-3: #9CA3AF;
+            --r-lg: 24px;
+            --r-md: 14px;
+            --r-sm: 10px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: flex-start;
+            padding: 20px 16px 48px;
+            overflow-x: hidden;
+        }
+
+        .orb {
+            position: fixed; border-radius: 50%; filter: blur(80px);
+            opacity: 0.15; pointer-events: none; z-index: 0;
+            animation: drift 20s ease-in-out infinite;
+        }
+        .orb-1 { width: 500px; height: 500px; background: #DC143C; top: -150px; left: -100px; animation-duration: 22s; }
+        .orb-2 { width: 350px; height: 350px; background: #10B981; bottom: 0; right: -80px; animation-duration: 18s; animation-delay: -6s; }
+        @keyframes drift {
+            0%,100% { transform: translate(0,0) scale(1); }
+            50%      { transform: translate(24px,-32px) scale(1.04); }
+        }
+
+        /* Confetti particles */
+        .confetti-wrap {
+            position: fixed; inset: 0; pointer-events: none; z-index: 10; overflow: hidden;
+        }
+        .confetti-piece {
+            position: absolute; width: 10px; height: 10px; top: -20px;
+            border-radius: 2px;
+            animation: confetti-fall linear forwards;
+        }
+        @keyframes confetti-fall {
+            to { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+        }
+
+        .layout {
+            width: 100%; max-width: 680px;
+            position: relative; z-index: 1;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        /* Navbar */
+        .navbar {
+            width: 100%; display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 24px; padding: 13px 22px;
+            background: rgba(255,255,255,0.06); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: var(--r-md);
+            animation: fadeDown 0.4s ease both;
+        }
+        @keyframes fadeDown { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:none} }
+
+        .brand { display:flex; align-items:center; gap:12px; text-decoration:none; }
+        .brand-icon {
+            width:38px; height:38px;
+            background: linear-gradient(135deg, var(--brand), #8B0000);
+            border-radius:11px; display:flex; align-items:center; justify-content:center;
+            box-shadow: 0 4px 14px var(--brand-glow);
+        }
+        .brand-icon svg { width:20px; height:20px; fill:#fff; }
+        .brand-name { font-family:'Outfit',sans-serif; font-size:19px; font-weight:800; color:#fff; line-height:1; }
+        .brand-sub  { font-size:10px; font-weight:600; color:rgba(255,255,255,0.45); letter-spacing:1px; text-transform:uppercase; }
+
+        .nav-links { display:flex; gap:6px; }
+        .nav-link {
+            padding:7px 13px; border-radius:8px; font-size:13px; font-weight:600;
+            color:rgba(255,255,255,0.6); text-decoration:none; transition:all 0.2s;
+        }
+        .nav-link:hover { color:#fff; background:rgba(255,255,255,0.1); }
+
+        /* Main card */
+        .main-card {
+            background: var(--card);
+            border-radius: var(--r-lg);
+            width: 100%;
+            padding: 40px 36px;
+            position: relative; overflow: hidden;
+            box-shadow: 0 32px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+            animation: fadeUp 0.5s 0.15s ease both;
+        }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:none} }
+
+        .main-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
+            background: linear-gradient(90deg, var(--success), #34D399, #059669);
+            background-size: 200% 100%;
+            animation: shimmer 2.5s linear infinite;
+        }
+        @keyframes shimmer { to { background-position: 200% 0; } }
+
+        /* Success header */
+        .success-header { text-align: center; margin-bottom: 32px; }
+
+        .success-badge {
+            width: 72px; height: 72px; margin: 0 auto 18px;
+            background: var(--success-light);
+            border: 3px solid rgba(16,185,129,0.3);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--success);
+            box-shadow: 0 0 0 8px rgba(16,185,129,0.08);
+            animation: pop-in 0.5s 0.4s cubic-bezier(.34,1.56,.64,1) both, pulse-green 2.5s 1s ease-in-out infinite;
+        }
+        @keyframes pop-in { from{opacity:0;transform:scale(0.4)} to{opacity:1;transform:scale(1)} }
+        @keyframes pulse-green { 0%,100%{box-shadow:0 0 0 8px rgba(16,185,129,0.08)} 50%{box-shadow:0 0 0 18px rgba(16,185,129,0)} }
+        .success-badge svg { width:36px; height:36px; stroke:currentColor; fill:none; stroke-width:2.5; }
+
+        .success-title {
+            font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 800;
+            color: var(--text); margin-bottom: 6px;
+        }
+        .success-sub { font-size: 14px; color: var(--text-2); line-height: 1.5; }
+
+        /* Pledge card */
+        .pledge-card {
+            background: #F9FAFB; border: 1.5px solid var(--border);
+            border-radius: var(--r-md); padding: 24px;
+            display: grid; grid-template-columns: 170px 1fr; gap: 24px;
+            align-items: center; margin-bottom: 28px;
+            animation: fadeUp 0.5s 0.35s ease both;
+        }
+        @media (max-width:560px) { .pledge-card { grid-template-columns: 1fr; } }
+
+        .ornament-img {
+            position: relative; border-radius: var(--r-md); overflow: hidden;
+            border: 2.5px solid var(--brand);
+            box-shadow: 0 6px 20px var(--brand-glow);
+            aspect-ratio: 1/1; background: #000;
+        }
+        .ornament-img img { width:100%; height:100%; object-fit:cover; display:block; }
+        .ornament-label {
+            position: absolute; bottom: 8px; left: 8px;
+            background: rgba(17,24,39,0.85); color: #fff;
+            font-size: 10px; font-weight: 700; padding: 3px 8px;
+            border-radius: 4px; letter-spacing: 0.4px; text-transform: uppercase;
+        }
+
+        .pledge-details { display:flex; flex-direction:column; gap:13px; }
+
+        .pledge-id-val {
+            font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 900;
+            color: var(--brand); letter-spacing: -0.3px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .pledge-id-copy {
+            cursor: pointer; background: rgba(220,20,60,0.08);
+            border: none; border-radius: 6px; padding: 4px 8px;
+            color: var(--brand); font-size: 11px; font-weight: 700;
+            transition: all 0.2s;
+        }
+        .pledge-id-copy:hover { background: rgba(220,20,60,0.18); }
+
+        .detail-row { display:flex; flex-direction:column; gap:2px; }
+        .detail-label { font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; }
+        .detail-value { font-size:15px; font-weight:600; color:var(--text); }
+        .detail-value.muted { font-size:13px; color:var(--text-2); }
+
+        /* Action buttons */
+        .action-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+            animation: fadeUp 0.5s 0.5s ease both;
+        }
+        .btn-action {
+            padding: 14px; border-radius: var(--r-sm);
+            font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700;
+            text-decoration: none; display: flex; align-items: center;
+            justify-content: center; gap: 9px; transition: all 0.25s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--brand), #FF4060); color: #fff;
+            box-shadow: 0 4px 16px var(--brand-glow);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px var(--brand-glow); }
+        .btn-secondary {
+            background: #F3F4F6; color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { background: #E5E7EB; transform: translateY(-2px); }
+        .btn-action svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; }
+
+        footer { margin-top:24px; font-size:12px; color:rgba(255,255,255,0.3); text-align:center; }
+    </style>
+</head>
+<body>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="confetti-wrap" id="confetti-wrap"></div>
+
+    <div class="layout">
+        <header class="navbar">
+            <a href="/" class="brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm0 18c-4.04-1.12-7-5.22-7-9.5V8.3l7-3.89 7 3.89V10.5c0 4.28-2.96 8.38-7 9.5z"/></svg>
+                </div>
+                <div>
+                    <div class="brand-name">GoldSafe</div>
+                    <div class="brand-sub">Muthoot Finance AI</div>
+                </div>
+            </a>
+            <nav class="nav-links">
+                <a href="/" class="nav-link">Search Items</a>
+                <a href="/register" class="nav-link">Register Customer</a>
+                <a href="/customers" class="nav-link">Pledge Records</a>
+            </nav>
+        </header>
+
+        <main class="main-card">
+            <div class="success-header">
+                <div class="success-badge">
+                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <h1 class="success-title">Customer Registered!</h1>
+                <p class="success-sub">The customer KYC and pledged ornament photo have been recorded securely in the system database.</p>
+            </div>
+
+            <div class="pledge-card">
+                <div class="ornament-img">
+                    <img src="/{{ customer.ornament_photo }}" alt="Pledged ornament" id="main-ornament-img" onclick="openPhotoModal(this.src, 'Pledged Ornament — Angle 1')" style="cursor:pointer;">
+                    <span class="ornament-label">
+                        {% if customer.photos and customer.photos|length > 1 %}
+                            📷 {{ customer.photos|length }} Angles Saved
+                        {% else %}
+                            Pledged Item
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="pledge-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Pledge Reference ID</span>
+                        <div class="pledge-id-val">
+                            {{ customer.pledge_id }}
+                            <button class="pledge-id-copy" onclick="copyId('{{ customer.pledge_id }}')" title="Copy ID">Copy</button>
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Customer Name</span>
+                        <span class="detail-value">{{ customer.name }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Phone Number</span>
+                        <span class="detail-value">{{ customer.phone }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Aadhaar Number</span>
+                        <span class="detail-value">{{ customer.aadhar }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Registration Date &amp; Time</span>
+                        <span class="detail-value muted">{{ customer.created_at }}</span>
+                    </div>
+                </div>
+            </div>
+
+            {% if customer.photos and customer.photos|length > 1 %}
+            <div style="background:#F9FAFB; border:1.5px solid var(--border); border-radius:var(--r-md); padding:16px; margin-bottom:24px;">
+                <div style="font-family:'Outfit',sans-serif; font-size:14px; font-weight:700; color:var(--text); margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+                    <span>📷 Recorded Angles ({{ customer.photos|length }})</span>
+                    <span style="font-size:11px; font-weight:500; color:var(--text-3);">Click any photo to enlarge</span>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(90px, 1fr)); gap:10px;">
+                    {% for p in customer.photos %}
+                    <div style="position:relative; aspect-ratio:1/1; border-radius:8px; overflow:hidden; border:1.5px solid var(--border); background:#000; cursor:pointer;"
+                         onclick="openPhotoModal('/{{ p }}', 'Pledged Ornament — Angle {{ loop.index }}')">
+                        <img src="/{{ p }}" alt="Angle {{ loop.index }}" style="width:100%; height:100%; object-fit:cover; display:block; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                        <span style="position:absolute; bottom:3px; left:3px; background:rgba(0,0,0,0.8); color:#fff; font-size:9.5px; font-weight:700; padding:1px 5px; border-radius:3px;">#{{ loop.index }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="action-grid">
+                <a href="/register" class="btn-action btn-primary">
+                    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Register Another
+                </a>
+                <a href="/customers" class="btn-action btn-secondary">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    View Pledge Records
+                </a>
+            </div>
+        </main>
+    </div>
+
+    <div class="photo-modal-backdrop" id="photo-modal" onclick="closePhotoModal(event)" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:#fff; border-radius:16px; max-width:600px; width:100%; overflow:hidden; box-shadow:0 32px 64px rgba(0,0,0,0.6);" onclick="event.stopPropagation()">
+            <div style="padding:14px 20px; background:#F9FAFB; border-bottom:1px solid #E5E7EB; display:flex; align-items:center; justify-content:space-between;">
+                <div id="photo-modal-title" style="font-weight:700; font-size:15px; color:#111827;">Pledged Ornament Photo</div>
+                <button type="button" onclick="closePhotoModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#6B7280;">&times;</button>
+            </div>
+            <img id="photo-modal-img" src="" alt="Enlarged Ornament" style="width:100%; max-height:75vh; object-fit:contain; background:#000; display:block;">
+        </div>
+    </div>
+
+    <footer>&copy; 2026 Muthoot Finance Ltd. GoldSafe Verification System.</footer>
+
+    <script>
+    function openPhotoModal(src, title) {
+        document.getElementById('photo-modal-img').src = src;
+        document.getElementById('photo-modal-title').textContent = title || 'Ornament Photo';
+        document.getElementById('photo-modal').style.display = 'flex';
+    }
+    function closePhotoModal() {
+        document.getElementById('photo-modal').style.display = 'none';
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePhotoModal(); });
+
+    // Confetti burst on load
+    const COLORS = ['#DC143C','#F59E0B','#10B981','#7C3AED','#FF6B6B','#FCD34D'];
+    function launchConfetti() {
+        const wrap = document.getElementById('confetti-wrap');
+        for (let i = 0; i < 80; i++) {
+            const p = document.createElement('div');
+            p.className = 'confetti-piece';
+            const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+            const left = Math.random() * 100;
+            const dur  = 1.5 + Math.random() * 2;
+            const delay = Math.random() * 0.8;
+            const size = 6 + Math.random() * 8;
+            p.style.cssText = `
+                left:${left}vw; width:${size}px; height:${size}px;
+                background:${color}; opacity:${0.7 + Math.random()*0.3};
+                border-radius:${Math.random() > 0.5 ? '50%' : '2px'};
+                animation-duration:${dur}s; animation-delay:${delay}s;
+            `;
+            wrap.appendChild(p);
+        }
+        setTimeout(() => wrap.innerHTML = '', 4000);
+    }
+
+    function copyId(id) {
+        navigator.clipboard.writeText(id).then(() => {
+            const btn = document.querySelector('.pledge-id-copy');
+            btn.textContent = '✓ Copied';
+            btn.style.background = 'rgba(16,185,129,0.15)';
+            btn.style.color = '#059669';
+            setTimeout(() => { btn.textContent = 'Copy'; btn.style = ''; }, 2000);
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(launchConfetti, 400);
+    });
+    </script>
+</body>
+</html>
