@@ -8,4 +8,9 @@ __pycache__/
 
 # Virtual environment
 venv/
+.venv/
 .env
+
+# Django development database and collected assets
+backend/db.sqlite3
+backend/staticfiles/

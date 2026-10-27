@@ -1,0 +1,1 @@
+"""GoldSafe Django project configuration."""

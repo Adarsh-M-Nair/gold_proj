@@ -1,0 +1,1 @@
+"""Jewellery item and image records application."""
