@@ -1,5 +1,12 @@
 import re
+import uuid
+from io import BytesIO
+from pathlib import Path
 
+from PIL import Image, UnidentifiedImageError
+from django.conf import settings
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db.models import Q
 from rest_framework import generics, status
 from rest_framework.pagination import PageNumberPagination
@@ -69,3 +76,55 @@ class CustomerOnboardingView(APIView):
         serializer.is_valid(raise_exception=True)
         pledge = serializer.save()
         return Response(PledgeDetailSerializer(pledge).data, status=status.HTTP_201_CREATED)
+
+
+class ImageUploadView(APIView):
+    permission_classes = [AllowAny]
+    max_upload_bytes = 10 * 1024 * 1024
+    image_formats = {
+        "JPEG": ("jpg", "image/jpeg"),
+        "PNG": ("png", "image/png"),
+        "WEBP": ("webp", "image/webp"),
+    }
+
+    def post(self, request):
+        uploaded_file = request.FILES.get("image")
+        if uploaded_file is None:
+            return Response({"image": "Choose an image to upload."}, status=status.HTTP_400_BAD_REQUEST)
+        if uploaded_file.size > self.max_upload_bytes:
+            return Response(
+                {"image": "Image files must be 10 MB or smaller."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        content = uploaded_file.read()
+        try:
+            with Image.open(BytesIO(content)) as image:
+                image_format = image.format
+                image.verify()
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+            return Response(
+                {"image": "The uploaded file is not a valid image."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        image_details = self.image_formats.get(image_format or "")
+        if image_details is None:
+            return Response(
+                {"image": "Only JPG, PNG, and WEBP images are supported."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        extension, content_type = image_details
+        object_key = f"uploads/{uuid.uuid4().hex}.{extension}"
+        saved_key = default_storage.save(object_key, ContentFile(content))
+        return Response(
+            {
+                "object_key": saved_key,
+                "url": request.build_absolute_uri(f"{settings.MEDIA_URL}{saved_key}"),
+                "original_filename": Path(uploaded_file.name).name[:255],
+                "content_type": content_type,
+                "file_size_bytes": len(content),
+            },
+            status=status.HTTP_201_CREATED,
+        )

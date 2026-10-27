@@ -21,8 +21,22 @@ Without `DATABASE_URL`, Django uses the ignored local database at `backend/db.sq
 - `GET /api/v1/pledges/?search=<name|phone|aadhaar|pledge-code>&page=1&page_size=10`
 - `GET /api/v1/pledges/<uuid>/`
 - `DELETE /api/v1/pledges/<uuid>/` (soft delete)
+- `POST /api/v1/uploads/` (multipart field `image`; local development storage, JPG/PNG/WEBP up to 10 MB)
 - `POST /api/v1/onboarding/register-customer/`
 
 List responses omit deleted pledges unless `status=DELETED` is requested. Aadhaar is searchable but only returned masked. Image metadata stores legacy paths as object keys until Phase 3 moves files to MinIO/S3.
 
-This phase is a development migration, not a production security boundary. Authentication, role permissions, encrypted KYC storage, audit logging, and private object storage remain required before production use.
+## React frontend
+
+From `frontend`, install dependencies and start the Vite development server:
+
+```powershell
+npm install
+npm run dev
+```
+
+In another terminal, run the Django API at `http://127.0.0.1:8000`. Vite proxies `/api` and `/media` to Django. The frontend is available at `http://localhost:5173`.
+
+The registration screen uploads validated image files to local Django media storage before submitting the onboarding request. This endpoint is for local development only; Phase 3 replaces it with private MinIO/S3 uploads. The jewellery identification page is ready for the matching API, but the current backend does not yet include matching endpoints; those are part of the ML service and pgvector phases.
+
+This phase is a development migration, not a production security boundary. Authentication, role permissions, encrypted KYC storage, audit logging, private object storage, and a configured matching service remain required before production use.

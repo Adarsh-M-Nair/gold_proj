@@ -240,6 +240,30 @@ frontend/
 └── Dockerfile
 ```
 
+### Current frontend organization
+
+The React frontend now uses the structure above for implemented features:
+
+- `src/app/App.tsx` composes the application shell; `src/app/router.tsx` defines
+  routes, including the pledge detail screen in `pages/PledgeDetailPage.tsx`.
+- `src/pages/` contains screen-level composition and page-specific state.
+- `src/components/` groups layout, dashboard, customer, jewellery, and common UI.
+  Customer registration lives in `customers/CustomerForm.tsx`, with separate KYC
+  fields, webcam capture, multi-image upload, and image previews.
+- `src/services/` owns the shared API client and customer, pledge, image, and
+  matching requests. API payload types live in `src/types/`.
+- `src/hooks/` shares webcam lifecycle/capture, validated image selection and
+  preview cleanup, and search debouncing.
+- `src/utils/` contains display formatting and image URL/format helpers.
+
+The existing navigation, routes, CSS, API endpoints, and local upload workflow
+are retained. Planned modules without a current feature (authentication,
+providers, sidebar navigation, and generic UI wrappers) are intentionally not
+scaffolded. No new runtime dependencies are required. Run `npm run build` from
+`frontend` to type-check and create the production bundle. Run `npm test` to check
+the service contracts, API error handling, and shared utility behavior using the
+Node.js test runner and the existing Vite toolchain.
+
 ## 7. Frontend Screens and Wireframe Mapping
 
 ### 7.1 Dashboard — `/`

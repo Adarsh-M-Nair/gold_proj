@@ -4,10 +4,14 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
+from PIL import Image
+from io import BytesIO
 
 from apps.customers.models import Customer
 from apps.jewellery.models import JewelleryImage, JewelleryItem
@@ -89,6 +93,32 @@ class PledgeApiTests(TestCase):
 
     def test_pledge_code_generation_tracks_existing_codes(self):
         self.assertEqual(generate_pledge_code(2026), "GS-2026-0002")
+
+    def test_image_upload_stores_verified_image_and_returns_metadata(self):
+        output = BytesIO()
+        Image.new("RGB", (4, 4), color="gold").save(output, format="PNG")
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                response = self.client.post(
+                    reverse("image-upload"),
+                    {"image": SimpleUploadedFile("ornament.png", output.getvalue(), content_type="image/png")},
+                    format="multipart",
+                )
+
+                self.assertEqual(response.status_code, 201)
+                self.assertEqual(response.data["content_type"], "image/png")
+                self.assertEqual(response.data["original_filename"], "ornament.png")
+                self.assertTrue((Path(media_root) / response.data["object_key"]).is_file())
+
+    def test_image_upload_rejects_non_image_files(self):
+        response = self.client.post(
+            reverse("image-upload"),
+            {"image": SimpleUploadedFile("not-an-image.jpg", b"not an image", content_type="image/jpeg")},
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("image", response.data)
 
 
 class LegacyImportTests(TestCase):
