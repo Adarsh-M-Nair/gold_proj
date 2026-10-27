@@ -12,6 +12,7 @@ const { getPledges, getPledge, deletePledge } = await server.ssrLoadModule("/src
 const { registerCustomer } = await server.ssrLoadModule("/src/services/customerService.ts");
 const { uploadImage } = await server.ssrLoadModule("/src/services/imageService.ts");
 const { searchMatches } = await server.ssrLoadModule("/src/services/matchingService.ts");
+const { getCatalogueItem } = await server.ssrLoadModule("/src/services/catalogueService.ts");
 const { imageUrl, supportedTypes, maxImageBytes } = await server.ssrLoadModule("/src/utils/imageUtils.ts");
 const { formatAadhaar, formatDate } = await server.ssrLoadModule("/src/utils/formatting.ts");
 
@@ -65,11 +66,23 @@ test("image and matching services submit multipart images", async (t) => {
   }
 });
 
-test("matching service explains an unavailable endpoint", async (t) => {
+test("matching service surfaces backend errors", async (t) => {
   t.mock.method(globalThis, "fetch", async () => Response.json({ detail: "Not found." }, { status: 404 }));
-  await assert.rejects(searchMatches(new File(["image"], "ring.jpg")), (error) =>
-    error instanceof ApiError && error.status === 404 && /Phase 4 ML service/.test(error.message),
-  );
+  await assert.rejects(searchMatches(new File(["image"], "ring.jpg")), {
+    message: "Not found.",
+    status: 404,
+  });
+});
+
+test("catalogue service loads details for an encoded reference item", async (t) => {
+  const details = {
+    category: "Ring",
+    item_id: "Ring_001",
+    images: [{ filename: "1.webp", url: "/api/v1/catalogue/Ring/Ring_001/images/1.webp" }],
+  };
+  const fetch = t.mock.method(globalThis, "fetch", async () => Response.json(details));
+  assert.deepEqual(await getCatalogueItem("Ring", "Ring/001"), details);
+  assert.equal(fetch.mock.calls[0].arguments[0], "/api/v1/catalogue/Ring/Ring%2F001/");
 });
 
 test("API client surfaces network errors", async (t) => {

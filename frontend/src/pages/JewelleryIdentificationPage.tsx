@@ -56,11 +56,11 @@ export function JewelleryIdentificationPage() {
 
   return (
     <>
-      <PageHeading eyebrow="Vision match engine" title="Jewellery identification" description="Prepare a clear jewellery image for the similarity matching service." />
+      <PageHeading eyebrow="Vision match engine" title="Jewellery identification" description="Find registered pledge records whose saved jewellery images match a photo." />
       <form className="panel identify-panel" onSubmit={(event) => void findMatches(event)}>
         <div className="identify-header">
           <div><span className="engine-badge"><Sparkles size={15} />Vision Match Engine</span><p>Upload an ornament photo or capture a live image to begin.</p></div>
-          <span className="availability-badge"><span />Matching API not connected</span>
+          <span className="availability-badge"><span />ResNet-50 similarity search</span>
         </div>
         <div className="segmented-control identify-tabs">
           <button type="button" className={mode === "upload" ? "selected" : ""} onClick={() => setMode("upload")}><Upload size={16} />Image upload</button>
@@ -83,7 +83,7 @@ export function JewelleryIdentificationPage() {
         )}
         {(error || imageError) && <ErrorBanner message={error || imageError} />}
         <div className="identify-footer">
-          <span><Shield size={15} /> Matching results require a configured ML service.</span>
+          <span><Shield size={15} /> Ranked against images saved in registered pledge records.</span>
           <button className="button button-primary" disabled={processing || !file} type="submit">{processing ? <><LoaderCircle className="spin" size={16} />Searching…</> : <><Sparkles size={16} />Find similar items</>}</button>
         </div>
       </form>

@@ -1029,11 +1029,11 @@ volumes:
 
 ### Phase 4 — ML service and pgvector search
 
-- Extract `feature_extraction.py` into the FastAPI service.
-- Expose `/embed` and `/match` endpoints.
-- Replace `item_embeddings.npy` with pgvector storage.
-- Implement cosine top-k retrieval.
-- Add model versioning and re-embedding support.
+- Extract ResNet-50 feature extraction into `ml_service/`.
+- Expose versioned `/embed` and `/match` FastAPI endpoints.
+- Store reference-item embeddings in PostgreSQL with pgvector rather than `item_embeddings.npy`.
+- Implement cosine top-k retrieval and connect the Django matching API to the service.
+- Add a dataset re-embedding command that indexes updates under the active model version.
 
 **Deliverable:** Production-ready jewellery identification pipeline.
 

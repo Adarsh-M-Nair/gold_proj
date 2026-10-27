@@ -1,16 +1,35 @@
 import { Gem } from "lucide-react";
-import type { MatchResponse } from "../../types/matching";
+import type { PledgeMatch } from "../../types/matching";
 
-export function MatchResultCard({ match, index }: { match: NonNullable<MatchResponse["matches"]>[number]; index: number }) {
+export function similarityPercent(score: number | undefined): number {
+  return Math.round((score ?? 0) * (score && score <= 1 ? 100 : 1));
+}
+
+export function MatchResultCard({
+  match,
+  index,
+  onSelect,
+}: {
+  match: PledgeMatch;
+  index: number;
+  onSelect: () => void;
+}) {
+  const title = match.pledge_id || "Pledge record";
+  const imageUrl = match.stored_image_url ?? match.images?.[0]?.url;
   return (
-    <article className="match-card">
-      {match.stored_image_url ? <img src={match.stored_image_url} alt={`Matched item for ${match.pledge_id ?? "pledge"}`} /> : <div className="match-placeholder"><Gem size={25} /></div>}
+    <button className="match-card match-card-button" type="button" onClick={onSelect} aria-label={`View details for ${title}`}>
+      {imageUrl ? (
+        <img src={imageUrl} alt={`${title} pledged jewellery`} loading="lazy" />
+      ) : (
+        <span className="match-placeholder"><Gem size={25} /></span>
+      )}
       <div className="match-card-content">
         <span className="match-rank">#{match.rank ?? index + 1} match</span>
-        <strong>{match.pledge_id ?? "Pledge record"}</strong>
-        <span>{match.customer_name ?? "Customer details unavailable"}</span>
-        <div className="match-score">{Math.round((match.similarity_score ?? 0) * (match.similarity_score && match.similarity_score <= 1 ? 100 : 1))}% similarity</div>
+        <strong>{title}</strong>
+        <span>{[match.customer_name, match.jewellery_category].filter(Boolean).join(" · ") || "Registered pledge"}</span>
+        <div className="match-score">{similarityPercent(match.similarity_score)}% similarity</div>
+        <span className="match-details-hint">Click to view images and pledge details</span>
       </div>
-    </article>
+    </button>
   );
 }

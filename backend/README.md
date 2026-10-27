@@ -23,6 +23,8 @@ Without `DATABASE_URL`, Django uses the ignored local database at `backend/db.sq
 - `DELETE /api/v1/pledges/<uuid>/` (soft delete)
 - `POST /api/v1/uploads/` (multipart field `image`; local development storage, JPG/PNG/WEBP up to 10 MB)
 - `POST /api/v1/onboarding/register-customer/`
+- `GET /api/v1/catalogue/<category>/<item_id>/` (reference item details and image gallery)
+- `GET /api/v1/catalogue/<category>/<item_id>/images/<filename>` (reference image)
 
 List responses omit deleted pledges unless `status=DELETED` is requested. Aadhaar is searchable but only returned masked. Image metadata stores legacy paths as object keys until Phase 3 moves files to MinIO/S3.
 
@@ -37,6 +39,21 @@ npm run dev
 
 In another terminal, run the Django API at `http://127.0.0.1:8000`. Vite proxies `/api` and `/media` to Django. The frontend is available at `http://localhost:5173`.
 
-The registration screen uploads validated image files to local Django media storage before submitting the onboarding request. This endpoint is for local development only; Phase 3 replaces it with private MinIO/S3 uploads. The jewellery identification page is ready for the matching API, but the current backend does not yet include matching endpoints; those are part of the ML service and pgvector phases.
+The registration screen uploads validated image files to local Django media storage before submitting the onboarding request. This endpoint is for local development only; Phase 3 replaces it with private MinIO/S3 uploads.
+
+## Phase 4 ML matching
+
+Install the root `requirements.txt`, configure PostgreSQL with pgvector, and start the ML service as described in [`../ml_service/README.md`](../ml_service/README.md). Django forwards `POST /api/v1/matching/search/` image uploads to `ML_SERVICE_URL` (default `http://127.0.0.1:8001`) and returns the registered pledge records whose saved jewellery images are most similar, ranked by their best-matching image. Each pledge appears once, deleted pledges are excluded, and every result includes the pledge code, customer summary (masked Aadhaar), jewellery details, and image URLs.
+
+When a customer is registered, each pledge image is embedded through the ML service and its `embedding_status` becomes `COMPLETED`, or `FAILED` if the file is missing or the ML service is unavailable (registration still succeeds). Index existing records, or retry failures, with:
+
+```powershell
+python manage.py index_pledge_images        # PENDING and FAILED images
+python manage.py index_pledge_images --all  # re-embed everything, e.g. after changing EMBEDDING_MODEL_VERSION
+```
+
+Images imported from the legacy app with `static/uploads/...` keys are read from the repository's `static/uploads` folder.
 
 This phase is a development migration, not a production security boundary. Authentication, role permissions, encrypted KYC storage, audit logging, private object storage, and a configured matching service remain required before production use.
+
+Selecting an identification result opens the matched pledge's images and details, with a link to the full pledge record. The catalogue endpoints under `/api/v1/catalogue/` still serve the local `Dataset` reference images.

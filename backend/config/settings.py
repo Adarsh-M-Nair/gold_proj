@@ -6,6 +6,7 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = BASE_DIR.parent
+DATASET_DIR = REPO_ROOT / "Dataset"
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "development-only-change-me")
 DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() == "true"
 ALLOWED_HOSTS = [
@@ -95,3 +96,5 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
 }
+
+ML_SERVICE_URL = os.environ.get("ML_SERVICE_URL", "http://127.0.0.1:8001").rstrip("/")
