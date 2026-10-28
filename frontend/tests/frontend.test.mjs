@@ -51,19 +51,41 @@ test("customer service preserves the onboarding payload", async (t) => {
   assert.deepEqual(JSON.parse(init.body), payload);
 });
 
-test("image and matching services submit multipart images", async (t) => {
-  const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({ status: "COMPLETED" }));
+test("image service uses a presigned upload and matching submits multipart images", async (t) => {
   const file = new File(["image"], "ring.jpg", { type: "image/jpeg" });
+  const upload = {
+    method: "POST",
+    upload_url: "https://storage.example/upload",
+    object_key: "uploads/123.jpg",
+    fields: { key: "uploads/123.jpg", policy: "signed-policy" },
+    original_filename: "ring.jpg",
+    content_type: "image/jpeg",
+    file_size_bytes: file.size,
+  };
+  const fetch = t.mock.method(globalThis, "fetch", async (url) => {
+    if (url === "/api/v1/uploads/presign/") return Response.json(upload);
+    if (url === upload.upload_url) return new Response(null, { status: 200 });
+    return Response.json({ status: "COMPLETED" });
+  });
   await uploadImage(file);
   await searchMatches(file);
   assert.deepEqual(fetch.mock.calls.map(({ arguments: [url] }) => url), [
-    "/api/v1/uploads/", "/api/v1/matching/search/",
+    "/api/v1/uploads/presign/", upload.upload_url, "/api/v1/matching/search/",
   ]);
-  for (const { arguments: [, init] } of fetch.mock.calls) {
-    assert.equal(init.method, "POST");
-    assert.equal(init.body.get("image").name, "ring.jpg");
-    assert.equal(await init.body.get("image").text(), "image");
-  }
+  const [presignRequest, directUpload, matchRequest] = fetch.mock.calls.map(({ arguments: [, init] }) => init);
+  assert.equal(presignRequest.method, "POST");
+  assert.deepEqual(JSON.parse(presignRequest.body), {
+    filename: "ring.jpg",
+    content_type: "image/jpeg",
+    file_size_bytes: file.size,
+  });
+  assert.equal(directUpload.method, "POST");
+  assert.equal(directUpload.body.get("key"), "uploads/123.jpg");
+  assert.equal(directUpload.body.get("policy"), "signed-policy");
+  assert.equal(directUpload.body.get("file"), file);
+  assert.equal(matchRequest.method, "POST");
+  assert.equal(matchRequest.body.get("image").name, "ring.jpg");
+  assert.equal(await matchRequest.body.get("image").text(), "image");
 });
 
 test("matching service surfaces backend errors", async (t) => {

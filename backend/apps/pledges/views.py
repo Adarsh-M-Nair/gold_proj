@@ -1,16 +1,14 @@
 import logging
 import re
 import uuid
-from io import BytesIO
 from pathlib import Path
 
 import httpx
-from PIL import Image, UnidentifiedImageError
+from botocore.exceptions import BotoCoreError
 from django.conf import settings
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
+from django.core import signing
 from django.db.models import Q
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
 from rest_framework import generics, status
 from rest_framework.pagination import PageNumberPagination
@@ -19,8 +17,19 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.jewellery.indexing import index_pledge_images
+from apps.jewellery.indexing import PledgeImageUnavailable, read_pledge_image
 from apps.jewellery.models import JewelleryImage
+from .image_storage import (
+    MAX_UPLOAD_BYTES,
+    PRIVATE_IMAGE_SALT,
+    InvalidImageUpload,
+    create_upload_request,
+    inspect_image_content,
+    object_storage_enabled,
+    private_image_url,
+    save_uploaded_image,
+    validate_upload_metadata,
+)
 from .models import Pledge
 from .serializers import OnboardingSerializer, PledgeDetailSerializer, PledgeListSerializer, mask_aadhaar
 
@@ -59,12 +68,7 @@ def catalogue_images(item_directory):
 
 
 def pledge_image_url(request, object_key):
-    if re.match(r"https?://", object_key, re.IGNORECASE):
-        return object_key
-    key = object_key.lstrip("/")
-    if key.startswith(("media/", "static/uploads/")):
-        return request.build_absolute_uri(f"/{key}")
-    return request.build_absolute_uri(f"{settings.MEDIA_URL}{key}")
+    return private_image_url(request, object_key)
 
 
 class PledgePagination(PageNumberPagination):
@@ -124,26 +128,39 @@ class CustomerOnboardingView(APIView):
         serializer = OnboardingSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         pledge = serializer.save()
-        # Indexing runs after the registration commits; failures leave images FAILED for a later retry.
-        index_pledge_images(pledge.images.all())
         pledge = Pledge.objects.select_related("customer").prefetch_related("items__images").get(pk=pledge.pk)
-        return Response(PledgeDetailSerializer(pledge).data, status=status.HTTP_201_CREATED)
+        return Response(
+            PledgeDetailSerializer(pledge, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class PresignedImageUploadView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        try:
+            filename, content_type, file_size = validate_upload_metadata(request.data)
+            upload = create_upload_request(request, filename, content_type, file_size)
+        except InvalidImageUpload as error:
+            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        except BotoCoreError:
+            logger.exception("Could not create an object-storage upload URL")
+            return Response(
+                {"detail": "Image storage is unavailable. Please try again later."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(upload, status=status.HTTP_200_OK)
 
 
 class ImageUploadView(APIView):
     permission_classes = [AllowAny]
-    max_upload_bytes = 10 * 1024 * 1024
-    image_formats = {
-        "JPEG": ("jpg", "image/jpeg"),
-        "PNG": ("png", "image/png"),
-        "WEBP": ("webp", "image/webp"),
-    }
 
     def post(self, request):
         uploaded_file = request.FILES.get("image")
         if uploaded_file is None:
             return Response({"image": "Choose an image to upload."}, status=status.HTTP_400_BAD_REQUEST)
-        if uploaded_file.size > self.max_upload_bytes:
+        if uploaded_file.size > MAX_UPLOAD_BYTES:
             return Response(
                 {"image": "Image files must be 10 MB or smaller."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -151,35 +168,56 @@ class ImageUploadView(APIView):
 
         content = uploaded_file.read()
         try:
-            with Image.open(BytesIO(content)) as image:
-                image_format = image.format
-                image.verify()
-        except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+            filename = Path(uploaded_file.name).name[:255]
+            object_key, details = save_uploaded_image(content)
+        except InvalidImageUpload as error:
             return Response(
-                {"image": "The uploaded file is not a valid image."},
+                {"image": str(error)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        image_details = self.image_formats.get(image_format or "")
-        if image_details is None:
+        except BotoCoreError:
+            logger.exception("Could not save an uploaded image")
             return Response(
-                {"image": "Only JPG, PNG, and WEBP images are supported."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"detail": "Image storage is unavailable. Please try again later."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-
-        extension, content_type = image_details
-        object_key = f"uploads/{uuid.uuid4().hex}.{extension}"
-        saved_key = default_storage.save(object_key, ContentFile(content))
         return Response(
             {
-                "object_key": saved_key,
-                "url": request.build_absolute_uri(f"{settings.MEDIA_URL}{saved_key}"),
-                "original_filename": Path(uploaded_file.name).name[:255],
-                "content_type": content_type,
-                "file_size_bytes": len(content),
+                "object_key": object_key,
+                "url": private_image_url(request, object_key),
+                "original_filename": filename,
+                "content_type": details["content_type"],
+                "file_size_bytes": details["file_size_bytes"],
+                "checksum_sha256": details["checksum_sha256"],
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class PrivateImageAccessView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, token):
+        try:
+            object_key = signing.loads(token, salt=PRIVATE_IMAGE_SALT, max_age=300)
+            content = read_pledge_image(JewelleryImage(object_key=object_key))
+        except (
+            signing.BadSignature,
+            signing.SignatureExpired,
+            FileNotFoundError,
+            OSError,
+            PledgeImageUnavailable,
+            ValueError,
+        ):
+            raise Http404("Image not found.")
+        try:
+            details = inspect_image_content(content)
+        except InvalidImageUpload:
+            raise Http404("Image not found.")
+        response = HttpResponse(content, content_type=details["content_type"])
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
 
 
 class MatchingSearchView(APIView):

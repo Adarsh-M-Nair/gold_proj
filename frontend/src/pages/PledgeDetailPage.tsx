@@ -41,7 +41,7 @@ export function PledgeDetailPage() {
           <div className="detail-block"><span>Jewellery category</span><strong>{record.items?.[0]?.category || "Not specified"}</strong></div>
         </div>
         <div className="detail-photos"><div className="panel-heading"><div><p className="eyebrow">Pledge photos</p><h2>{images.length} {images.length === 1 ? "image" : "images"}</h2></div></div>
-          {images.length ? <div className="detail-image-grid">{images.map((image) => <figure key={image.id}><img src={imageUrl(image.thumbnail_object_key || image.object_key)} alt={image.original_filename || "Pledged jewellery"} /><figcaption>{image.image_type.toLowerCase()} · {image.embedding_status.toLowerCase()}</figcaption></figure>)}</div> : <p className="muted-copy">No image records are available.</p>}
+          {images.length ? <div className="detail-image-grid">{images.map((image) => <figure key={image.id}><img src={imageUrl(image.thumbnail_url || image.image_url)} alt={image.original_filename || "Pledged jewellery"} /><figcaption>{image.image_type.toLowerCase()} · {image.embedding_status.toLowerCase()}</figcaption></figure>)}</div> : <p className="muted-copy">No image records are available.</p>}
         </div>
       </section>
     </>

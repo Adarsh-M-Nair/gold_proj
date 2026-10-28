@@ -1,12 +1,19 @@
+import logging
 import re
 
 from django.db import transaction
+from kombu.exceptions import OperationalError
 from rest_framework import serializers
 
 from apps.customers.models import Customer
 from apps.jewellery.models import JewelleryImage, JewelleryItem
+from apps.jewellery.tasks import process_pledge_image
+from .image_storage import InvalidImageUpload, private_image_url, validate_staged_image
 from .models import Pledge
 from .services import generate_pledge_code
+
+
+logger = logging.getLogger(__name__)
 
 
 def mask_aadhaar(value):
@@ -28,12 +35,15 @@ class CustomerSummarySerializer(serializers.ModelSerializer):
 
 
 class JewelleryImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
+
     class Meta:
         model = JewelleryImage
         fields = [
             "id",
-            "object_key",
-            "thumbnail_object_key",
+            "image_url",
+            "thumbnail_url",
             "original_filename",
             "content_type",
             "file_size_bytes",
@@ -42,6 +52,17 @@ class JewelleryImageSerializer(serializers.ModelSerializer):
             "embedding_status",
             "created_at",
         ]
+
+    def get_image_url(self, obj):
+        request = self.context.get("request")
+        return private_image_url(request, obj.object_key) if request else ""
+
+    def get_thumbnail_url(self, obj):
+        request = self.context.get("request")
+        if not request:
+            return ""
+        key = obj.thumbnail_object_key or obj.object_key
+        return private_image_url(request, key)
 
 
 class JewelleryItemSerializer(serializers.ModelSerializer):
@@ -63,10 +84,11 @@ class PledgeListSerializer(serializers.ModelSerializer):
         fields = ["id", "pledge_id", "pledge_code", "customer", "registered_at", "status", "primary_photo"]
 
     def get_primary_photo(self, obj):
+        request = self.context.get("request")
         for item in obj.items.all():
             image = next(iter(item.images.all()), None)
-            if image:
-                return image.thumbnail_object_key or image.object_key
+            if image and request:
+                return private_image_url(request, image.thumbnail_object_key or image.object_key)
         return ""
 
 
@@ -124,13 +146,27 @@ class JewelleryItemInputSerializer(serializers.Serializer):
 
 class JewelleryImageInputSerializer(serializers.Serializer):
     object_key = serializers.CharField(max_length=1024)
-    thumbnail_object_key = serializers.CharField(max_length=1024, required=False, allow_blank=True)
     original_filename = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    content_type = serializers.CharField(max_length=100, required=False, default="application/octet-stream")
+    content_type = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
     file_size_bytes = serializers.IntegerField(min_value=0, required=False, default=0)
     checksum_sha256 = serializers.CharField(max_length=64, required=False, allow_blank=True)
     capture_source = serializers.ChoiceField(choices=JewelleryImage.CaptureSource.choices, required=False)
     image_type = serializers.ChoiceField(choices=JewelleryImage.ImageType.choices, required=False)
+
+    def validate(self, data):
+        try:
+            details = validate_staged_image(
+                data["object_key"],
+                claimed_size=data.get("file_size_bytes"),
+                claimed_content_type=data.get("content_type"),
+                claimed_checksum=data.get("checksum_sha256"),
+            )
+        except InvalidImageUpload as error:
+            raise serializers.ValidationError({"object_key": str(error)}) from error
+        data["file_size_bytes"] = details["file_size_bytes"]
+        data["content_type"] = details["content_type"]
+        data["checksum_sha256"] = details["checksum_sha256"]
+        return data
 
 
 class OnboardingSerializer(serializers.Serializer):
@@ -150,9 +186,20 @@ class OnboardingSerializer(serializers.Serializer):
         )
         item = JewelleryItem.objects.create(pledge=pledge, **validated_data.get("jewellery_item", {}))
         for image_data in validated_data["images"]:
-            JewelleryImage.objects.create(
+            image = JewelleryImage.objects.create(
                 jewellery_item=item,
                 pledge=pledge,
                 **image_data,
             )
+            transaction.on_commit(lambda image_id=image.id: enqueue_image_processing(image_id))
         return pledge
+
+
+def enqueue_image_processing(image_id):
+    try:
+        process_pledge_image.delay(str(image_id))
+    except OperationalError:
+        logger.exception("Could not enqueue image processing for image %s", image_id)
+        JewelleryImage.objects.filter(pk=image_id).update(
+            embedding_status=JewelleryImage.EmbeddingStatus.FAILED
+        )

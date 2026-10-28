@@ -6,8 +6,8 @@ export interface SelectedImage {
 
 export interface PledgeImage {
   id: string;
-  object_key: string;
-  thumbnail_object_key: string;
+  image_url: string;
+  thumbnail_url: string;
   original_filename: string;
   content_type: string;
   file_size_bytes: number;
@@ -29,8 +29,8 @@ export interface JewelleryItem {
 
 export interface UploadedImage {
   object_key: string;
-  url: string;
   original_filename: string;
   content_type: string;
   file_size_bytes: number;
+  checksum_sha256?: string;
 }

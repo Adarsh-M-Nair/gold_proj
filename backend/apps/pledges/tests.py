@@ -1,4 +1,5 @@
 import json
+import hashlib
 import sqlite3
 import tempfile
 from datetime import date
@@ -6,7 +7,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import httpx
+from kombu.exceptions import OperationalError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.storage import default_storage
 from django.core.management import call_command
 from django.test import TestCase
 from django.test.utils import override_settings
@@ -18,6 +21,8 @@ from io import BytesIO, StringIO
 from apps.customers.models import Customer
 from apps.jewellery.indexing import PledgeImageUnavailable, read_pledge_image
 from apps.jewellery.models import JewelleryImage, JewelleryItem
+from apps.jewellery.tasks import process_pledge_image
+from apps.pledges.serializers import enqueue_image_processing
 from apps.pledges.models import Pledge
 from apps.pledges.services import generate_pledge_code
 
@@ -52,7 +57,8 @@ class PledgeApiTests(TestCase):
         self.assertEqual(record["pledge_id"], "GS-2026-0001")
         self.assertEqual(record["customer"]["masked_aadhaar"], "XXXX XXXX 9012")
         self.assertNotIn("aadhaar_number", record["customer"])
-        self.assertEqual(record["primary_photo"], "pledges/ring-thumb.jpg")
+        self.assertIn("/api/v1/images/access/", record["primary_photo"])
+        self.assertNotIn("pledges/ring-thumb.jpg", record["primary_photo"])
 
         aadhaar_response = self.client.get(reverse("pledge-list"), {"search": "123456789012"})
         self.assertEqual(aadhaar_response.data["count"], 1)
@@ -68,31 +74,33 @@ class PledgeApiTests(TestCase):
         self.assertEqual(self.pledge.status, Pledge.Status.DELETED)
         self.assertEqual(self.client.get(reverse("pledge-list")).data["count"], 0)
 
-    @patch("apps.jewellery.indexing.httpx.post")
-    def test_onboarding_creates_related_records_atomically(self, post):
-        post.return_value = httpx.Response(200, json={"stored": True}, request=httpx.Request("POST", "http://ml"))
+    @patch("apps.pledges.serializers.process_pledge_image.delay")
+    def test_onboarding_creates_related_records_and_queues_processing(self, enqueue):
         output = BytesIO()
         Image.new("RGB", (4, 4), color="gold").save(output, format="WEBP")
+        image_bytes = output.getvalue()
         with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
             (Path(media_root) / "uploads").mkdir()
-            (Path(media_root) / "uploads" / "front.webp").write_bytes(output.getvalue())
-            response = self.client.post(
-                reverse("customer-onboarding"),
-                {
-                    "customer": {
-                        "full_name": "New Customer",
-                        "phone_number": "9876543211",
-                        "aadhaar_number": "1234 5678 9013",
+            (Path(media_root) / "uploads" / "11111111111111111111111111111111.webp").write_bytes(image_bytes)
+            (Path(media_root) / "uploads" / "22222222222222222222222222222222.webp").write_bytes(image_bytes)
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(
+                    reverse("customer-onboarding"),
+                    {
+                        "customer": {
+                            "full_name": "New Customer",
+                            "phone_number": "9876543211",
+                            "aadhaar_number": "1234 5678 9013",
+                        },
+                        "pledge": {"pledge_date": "2026-10-27"},
+                        "jewellery_item": {"category": "BANGLE", "purity": "22K"},
+                        "images": [
+                            {"object_key": "uploads/11111111111111111111111111111111.webp", "image_type": "FRONT"},
+                            {"object_key": "uploads/22222222222222222222222222222222.webp", "image_type": "SIDE"},
+                        ],
                     },
-                    "pledge": {"pledge_date": "2026-10-27"},
-                    "jewellery_item": {"category": "BANGLE", "purity": "22K"},
-                    "images": [
-                        {"object_key": "uploads/front.webp", "image_type": "FRONT"},
-                        {"object_key": "uploads/side.webp", "image_type": "SIDE"},
-                    ],
-                },
-                format="json",
-            )
+                    format="json",
+                )
 
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data["pledge_code"], "GS-2026-0002")
@@ -101,16 +109,149 @@ class PledgeApiTests(TestCase):
         self.assertEqual(JewelleryImage.objects.count(), 2)
         self.assertEqual(response.data["customer"]["masked_aadhaar"], "XXXX XXXX 9013")
 
-        # The stored front image is embedded; the missing side image is marked for a later retry.
-        front = JewelleryImage.objects.get(object_key="uploads/front.webp")
-        self.assertEqual(post.call_count, 1)
-        self.assertTrue(post.call_args.args[0].endswith("/pledge-images/embed"))
-        self.assertEqual(post.call_args.kwargs["data"], {"image_id": str(front.id)})
-        self.assertEqual(post.call_args.kwargs["files"]["image"][1], output.getvalue())
+        self.assertEqual(enqueue.call_count, 2)
+        self.assertEqual(
+            {call.args[0] for call in enqueue.call_args_list},
+            {str(image.id) for image in JewelleryImage.objects.filter(pledge_id=response.data["id"])},
+        )
         statuses = {
-            image["object_key"]: image["embedding_status"] for image in response.data["items"][0]["images"]
+            image["image_url"]: image["embedding_status"] for image in response.data["items"][0]["images"]
         }
-        self.assertEqual(statuses, {"uploads/front.webp": "COMPLETED", "uploads/side.webp": "FAILED"})
+        self.assertEqual(set(statuses.values()), {"PENDING"})
+        self.assertNotIn("object_key", response.data["items"][0]["images"][0])
+
+    def test_onboarding_rejects_checksum_mismatch(self):
+        output = BytesIO()
+        Image.new("RGB", (4, 4), color="gold").save(output, format="PNG")
+        image_bytes = output.getvalue()
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            (Path(media_root) / "uploads").mkdir()
+            (Path(media_root) / "uploads" / "11111111111111111111111111111111.png").write_bytes(image_bytes)
+            response = self.client.post(
+                reverse("customer-onboarding"),
+                {
+                    "customer": {
+                        "full_name": "New Customer",
+                        "phone_number": "9876543211",
+                        "aadhaar_number": "1234 5678 9013",
+                    },
+                    "images": [{
+                        "object_key": "uploads/11111111111111111111111111111111.png",
+                        "checksum_sha256": hashlib.sha256(b"not the image").hexdigest(),
+                    }],
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Pledge.objects.count(), 1)
+
+    def test_local_upload_fallback_uses_short_lived_private_url(self):
+        output = BytesIO()
+        Image.new("RGB", (4, 4), color="gold").save(output, format="PNG")
+        image_bytes = output.getvalue()
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            presign = self.client.post(
+                reverse("image-upload-presign"),
+                {
+                    "filename": "ornament.png",
+                    "content_type": "image/png",
+                    "file_size_bytes": len(image_bytes),
+                },
+                format="json",
+            )
+            self.assertEqual(presign.status_code, 200)
+            self.assertEqual(presign.data["method"], "LOCAL")
+            uploaded = self.client.post(
+                reverse("image-upload"),
+                {"image": SimpleUploadedFile("ornament.png", image_bytes, content_type="image/png")},
+                format="multipart",
+            )
+
+            self.assertEqual(uploaded.status_code, 201)
+            self.assertEqual(uploaded.data["checksum_sha256"], hashlib.sha256(image_bytes).hexdigest())
+            private = self.client.get(uploaded.data["url"])
+            public = self.client.get(f"/media/{uploaded.data['object_key']}")
+
+        self.assertEqual(private.status_code, 200)
+        self.assertEqual(private.content, image_bytes)
+        self.assertEqual(private["Cache-Control"], "private, no-store")
+        self.assertEqual(public.status_code, 404)
+
+    @patch("apps.pledges.image_storage.storage_client")
+    def test_s3_presign_returns_a_signed_post_request(self, storage_client):
+        storage_client.return_value.generate_presigned_post.return_value = {
+            "url": "https://storage.example/upload",
+            "fields": {"key": "uploads/key.webp", "policy": "signed-policy"},
+        }
+        with override_settings(
+            OBJECT_STORAGE_BUCKET="goldsafe-private",
+            OBJECT_STORAGE_ENDPOINT_URL="http://127.0.0.1:9000",
+            OBJECT_STORAGE_REGION="us-east-1",
+        ):
+            response = self.client.post(
+                reverse("image-upload-presign"),
+                {
+                    "filename": "ornament.webp",
+                    "content_type": "image/webp",
+                    "file_size_bytes": 2048,
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["method"], "POST")
+        self.assertEqual(response.data["upload_url"], "https://storage.example/upload")
+        self.assertRegex(response.data["object_key"], r"^uploads/[0-9a-f]{32}\.webp$")
+        self.assertEqual(response.data["fields"]["policy"], "signed-policy")
+        storage_client.return_value.generate_presigned_post.assert_called_once()
+        call = storage_client.return_value.generate_presigned_post.call_args.kwargs
+        self.assertEqual(call["Bucket"], "goldsafe-private")
+        self.assertIn(["content-length-range", 2048, 2048 + 65536], call["Conditions"])
+
+    @patch("apps.jewellery.indexing.httpx.post")
+    def test_worker_validates_checksum_generates_thumbnail_and_embeds(self, post):
+        post.return_value = httpx.Response(200, json={"stored": True}, request=httpx.Request("POST", "http://ml"))
+        output = BytesIO()
+        Image.new("RGB", (32, 24), color="gold").save(output, format="PNG")
+        image_bytes = output.getvalue()
+        item = JewelleryItem.objects.create(pledge=self.pledge)
+
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            (Path(media_root) / "uploads").mkdir()
+            key = "uploads/11111111111111111111111111111111.png"
+            (Path(media_root) / key).write_bytes(image_bytes)
+            image = JewelleryImage.objects.create(
+                jewellery_item=item,
+                pledge=self.pledge,
+                object_key=key,
+                content_type="image/png",
+                file_size_bytes=len(image_bytes),
+                checksum_sha256=hashlib.sha256(image_bytes).hexdigest(),
+            )
+
+            self.assertTrue(process_pledge_image.run(str(image.id)))
+            image.refresh_from_db()
+            self.assertEqual(image.embedding_status, JewelleryImage.EmbeddingStatus.COMPLETED)
+            self.assertEqual(image.thumbnail_object_key, f"thumbnails/{image.id}.webp")
+            with default_storage.open(image.thumbnail_object_key, "rb") as thumbnail:
+                with Image.open(thumbnail) as thumbnail_image:
+                    self.assertEqual(thumbnail_image.format, "WEBP")
+
+    @patch("apps.pledges.serializers.process_pledge_image.delay", side_effect=OperationalError("Redis unavailable"))
+    def test_registration_survives_queue_unavailability(self, _enqueue):
+        item = JewelleryItem.objects.create(pledge=self.pledge)
+        image = JewelleryImage.objects.create(
+            jewellery_item=item,
+            pledge=self.pledge,
+            object_key="uploads/11111111111111111111111111111111.png",
+        )
+
+        enqueue_image_processing(image.id)
+
+        image.refresh_from_db()
+        self.assertEqual(image.embedding_status, JewelleryImage.EmbeddingStatus.FAILED)
+        self.assertTrue(process_pledge_image.ignore_result)
 
     @patch("apps.jewellery.indexing.httpx.post")
     def test_index_command_embeds_pending_and_failed_images_of_live_pledges(self, post):
@@ -260,9 +401,9 @@ class PledgeApiTests(TestCase):
         self.assertNotIn("aadhaar_number", best)
         self.assertEqual(best["jewellery_category"], "RING")
         self.assertEqual(best["jewellery_description"], "Floral ring")
-        self.assertTrue(best["stored_image_url"].endswith("/media/uploads/side.jpg"))
+        self.assertIn("/api/v1/images/access/", best["stored_image_url"])
         self.assertEqual([image["id"] for image in best["images"]], [str(side.id), str(front.id)])
-        self.assertTrue(matches[1]["stored_image_url"].endswith("/static/uploads/legacy.jpg"))
+        self.assertIn("/api/v1/images/access/", matches[1]["stored_image_url"])
 
     @patch("apps.pledges.views.httpx.post")
     def test_matching_search_limits_results_to_top_k(self, post):
@@ -337,12 +478,11 @@ class PledgeApiTests(TestCase):
                 self.assertEqual(image.status_code, 200)
                 self.assertEqual(image["Content-Type"], "image/png")
                 self.assertEqual(b"".join(image.streaming_content), output.getvalue())
-                image.close()
 
                 webp = self.client.get(reverse("catalogue-item-image", args=["Ring", "Ring_001", "2.webp"]))
                 self.assertEqual(webp.status_code, 200)
                 self.assertEqual(webp["Content-Type"], "image/webp")
-                webp.close()
+                self.assertEqual(b"".join(webp.streaming_content), webp_output.getvalue())
 
     def test_catalogue_detail_rejects_missing_and_unsafe_item_paths(self):
         with tempfile.TemporaryDirectory() as dataset_root:

@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 import httpx
+from botocore.exceptions import BotoCoreError
 from django.conf import settings
 from django.core.files.storage import default_storage
 
@@ -30,7 +31,7 @@ def read_pledge_image(image):
     try:
         with default_storage.open(object_key, "rb") as stored:
             return stored.read()
-    except (FileNotFoundError, OSError, ValueError) as error:
+    except (BotoCoreError, FileNotFoundError, OSError, ValueError) as error:
         raise PledgeImageUnavailable(f"Image file not found: {image.object_key}") from error
 
 
